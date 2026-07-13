@@ -7,15 +7,20 @@
 
 ---
 
-## 1. Kiến trúc Hệ thống Giai đoạn 2 (DDS Demonstration Platform)
-Trong Giai đoạn 2, hệ thống đã được nâng cấp từ một ứng dụng truyền nhận cơ bản thành một **Nền tảng Trình diễn DDS** thực thụ:
+## 1. Kiến trúc Hệ thống (DDS Demonstration Platform)
+Hệ thống đã trải qua các đợt tái cấu trúc nghiêm ngặt (Clean Architecture, SOLID) để trở thành một **Nền tảng Trình diễn DDS** cấp độ công nghiệp:
 - **C++ Backend (WSL2):** 
-  - Triển khai **DomainParticipantListener** để theo dõi topology mạng thời gian thực (Node Join/Leave).
-  - Cấu hình **Liveliness QoS** (AUTOMATIC_LIVELINESS_QOS) với Lease Duration = 3s để phát hiện thiết bị mất kết nối (Dropped) khi rớt Wi-Fi hoặc tắt nguồn.
+  - Đóng vai trò là **Data Gateway**, tích hợp thư viện `nlohmann/json` để parse an toàn. 
+  - Triển khai **DomainParticipantListener** để theo dõi topology mạng thời gian thực, truyền metadata (GUID, Node Join/Leave) về Dashboard.
+  - Xử lý lỗi với **Exception Boundaries**, đảm bảo không bị sập (crash) khi gói tin bị lỗi định dạng.
 - **Python Dashboard (Streamlit):**
-  - Sử dụng cơ sở dữ liệu **SQLite** (`dds_demo.db`) làm bộ đệm trung gian để lưu trữ cả siêu dữ liệu mạng (Participants info) lẫn Payload (Sensor data). Việc này ngăn chặn tình trạng thắt cổ chai ở UI khi tốc độ bản tin cao.
-  - Tách UI thành 3 Tab: Topology & Discovery, QoS & Analytics, Sensor Data.
-- **Android App:** Bổ sung giao diện thay đổi QoS (Reliable vs Best Effort) động tại thời điểm khởi tạo mạng DDS.
+  - Tách kiến trúc theo mô hình **MVC** (Services, Views, Models, Utils).
+  - Tích hợp **SQLite** (`dds_demo.db`) lưu trữ Payload và lịch sử Discovery (bảng `discovery_events`).
+  - Giao diện trực quan hoá 3 phần chính: **DDS Runtime & Discovery** (Timeline, Liveliness Tracking), **QoS & Analytics** (Throughput, Latency, Packet Loss), và **Sensor Data**.
+- **Android App:** 
+  - Chuyển sang **Clean Architecture** (phân tách `MainActivity`, `DDSManager` JNI Wrapper, `DDSPublisher` C++, `SensorSimulator`).
+  - Dùng **fastddsgen** sinh mã tuần tự hóa dữ liệu tự động, thay thế code thủ công.
+  - Bổ sung giao diện thay đổi QoS (Reliable vs Best Effort) động tại thời điểm khởi tạo mạng DDS.
 
 ## 2. Lý do lựa chọn Middleware (Fast DDS)
 Trong giai đoạn nghiên cứu, nhóm đã xem xét giữa hai middleware mã nguồn mở phổ biến: **Eclipse CycloneDDS** và **eProsima Fast DDS**.
