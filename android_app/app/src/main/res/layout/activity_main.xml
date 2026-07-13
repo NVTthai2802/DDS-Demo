@@ -20,6 +20,14 @@
         android:text="Auto-Discovery (Multicast SPDP)"
         android:textSize="14sp"
         android:textColor="#888888"
+        android:layout_marginBottom="10dp"/>
+
+    <CheckBox
+        android:id="@+id/cbReliable"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Su dung Reliable QoS (mac dinh la Best Effort)"
+        android:checked="true"
         android:layout_marginBottom="20dp"/>
 
     <Button

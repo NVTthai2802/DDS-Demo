@@ -7,6 +7,7 @@ import android.widget.TextView
 import android.widget.Toast
 import android.content.Context
 import android.net.wifi.WifiManager
+import android.widget.CheckBox
 import java.util.Timer
 import kotlin.concurrent.timerTask
 
@@ -15,6 +16,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnConnect: Button
     private lateinit var btnStartPublish: Button
     private lateinit var tvStatus: TextView
+    private lateinit var cbReliable: CheckBox
     private lateinit var multicastLock: WifiManager.MulticastLock
 
     private var isConnected = false
@@ -34,9 +36,10 @@ class MainActivity : AppCompatActivity() {
         btnConnect = findViewById(R.id.btnConnect)
         btnStartPublish = findViewById(R.id.btnStartPublish)
         tvStatus = findViewById(R.id.tvStatus)
+        cbReliable = findViewById(R.id.cbReliable)
 
         btnConnect.setOnClickListener {
-            val success = startDDS("") // IP no longer needed for Multicast
+            val success = startDDS(cbReliable.isChecked)
             if (success) {
                 isConnected = true
                 tvStatus.text = "Trang thai: Da khoi tao DDS (Auto-Discovery)"
@@ -90,7 +93,7 @@ class MainActivity : AppCompatActivity() {
     /**
      * Native C++ functions (JNI)
      */
-    external fun startDDS(laptopIp: String): Boolean
+    external fun startDDS(isReliable: Boolean): Boolean
     external fun stopDDS()
     external fun publishData(
         deviceId: String, deviceType: String, temp: Double, hum: Double, 

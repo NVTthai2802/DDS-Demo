@@ -3,19 +3,67 @@ import time
 import json
 import subprocess
 import os
+import sqlite3
 
 class DDSSubscriberThread(threading.Thread):
-    def __init__(self, data_queue):
+    def __init__(self, db_path="dds_demo.db"):
         super().__init__(daemon=True)
-        self.data_queue = data_queue
+        self.db_path = db_path
+        self._init_db()
         self.running = True
         self.process = None
+
+    def _init_db(self):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS sensor_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT, device_type TEXT, temperature REAL,
+            humidity REAL, co2 INTEGER, light INTEGER,
+            occupancy BOOLEAN, battery INTEGER, signal_strength INTEGER,
+            sequence_number INTEGER, timestamp REAL, receive_time REAL,
+            latency_ms REAL
+        )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS participants (
+            guid TEXT PRIMARY KEY,
+            name TEXT,
+            status TEXT,
+            last_seen REAL
+        )''')
+        # Clear old data for demo
+        c.execute('DELETE FROM sensor_data')
+        c.execute('DELETE FROM participants')
+        conn.commit()
+        conn.close()
+
+    def _insert_data(self, sample, latency, current_time):
+        conn = sqlite3.connect(self.db_path, timeout=10)
+        c = conn.cursor()
+        c.execute('''INSERT INTO sensor_data 
+            (device_id, device_type, temperature, humidity, co2, light, 
+             occupancy, battery, signal_strength, sequence_number, timestamp, receive_time, latency_ms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+            (sample["device_id"], sample["device_type"], sample["temperature"], sample["humidity"],
+             sample["co2"], sample["light"], sample["occupancy"], sample["battery"],
+             sample["signal_strength"], sample["sequence_number"], sample["timestamp"],
+             current_time, latency))
+        conn.commit()
+        conn.close()
+
+    def _update_participant(self, guid, name, status):
+        conn = sqlite3.connect(self.db_path, timeout=10)
+        c = conn.cursor()
+        c.execute('''INSERT INTO participants (guid, name, status, last_seen)
+                     VALUES (?, ?, ?, ?)
+                     ON CONFLICT(guid) DO UPDATE SET status=excluded.status, last_seen=excluded.last_seen, name=excluded.name
+                  ''', (guid, name, status, time.time()))
+        conn.commit()
+        conn.close()
 
     def run(self):
         print("DDS Subscriber đang lắng nghe thông qua C++ Fast DDS Backend...")
         
-        # Chạy C++ backend
-        backend_path = os.path.join(os.path.dirname(__file__), "..", "wsl_dashboard", "backend", "build", "subscriber")
+        backend_path = os.path.join(os.path.dirname(__file__), "..", "wsl_backend", "backend", "build", "subscriber")
         if not os.path.exists(backend_path):
             print(f"[ERROR] Không tìm thấy {backend_path}. Vui lòng build C++ backend trước!")
             return
@@ -35,30 +83,17 @@ class DDSSubscriberThread(threading.Thread):
             line = line.strip()
             if line.startswith("{") and line.endswith("}"):
                 try:
-                    sample = json.loads(line)
-                    current_time = time.time()
-                    latency = (current_time - sample["timestamp"]) * 1000 # milliseconds
-                    
-                    data_point = {
-                        "device_id": sample["device_id"],
-                        "device_type": sample["device_type"],
-                        "temperature": sample["temperature"],
-                        "humidity": sample["humidity"],
-                        "co2": sample["co2"],
-                        "light": sample["light"],
-                        "occupancy": sample["occupancy"],
-                        "battery": sample["battery"],
-                        "signal_strength": sample["signal_strength"],
-                        "sequence_number": sample["sequence_number"],
-                        "timestamp": sample["timestamp"],
-                        "receive_time": current_time,
-                        "latency_ms": latency
-                    }
-                    self.data_queue.append(data_point)
+                    msg = json.loads(line)
+                    if msg.get("type") == "data":
+                        sample = msg["payload"]
+                        current_time = time.time()
+                        latency = (current_time - sample["timestamp"]) * 1000
+                        self._insert_data(sample, latency, current_time)
+                    elif msg.get("type") == "discovery":
+                        self._update_participant(msg["guid"], msg["name"], msg["event"])
                 except json.JSONDecodeError:
-                    print(f"Failed to parse JSON: {line}")
+                    pass
             else:
-                # In các log khác (INFO, ERROR từ C++)
                 print(line)
             
             time.sleep(0.001)

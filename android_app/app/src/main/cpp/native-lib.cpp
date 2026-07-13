@@ -30,14 +30,10 @@ bool isPublishing = false;
 int32_t seq_num = 0;
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_example_ddsdemo_MainActivity_startDDS(JNIEnv* env, jobject /* this */, jstring laptop_ip) {
+Java_com_example_ddsdemo_MainActivity_startDDS(JNIEnv* env, jobject /* this */, jboolean is_reliable) {
     if (participant != nullptr) return true;
 
-    const char *ip_str = env->GetStringUTFChars(laptop_ip, 0);
-    std::string target_ip(ip_str);
-    env->ReleaseStringUTFChars(laptop_ip, ip_str);
-
-    LOGI("Initializing DDS targeting IP: %s", target_ip.c_str());
+    LOGI("Initializing DDS with Reliable QoS: %d", is_reliable);
 
     DomainParticipantQos pqos = PARTICIPANT_QOS_DEFAULT;
     pqos.name("Android_Publisher");
@@ -56,9 +52,17 @@ Java_com_example_ddsdemo_MainActivity_startDDS(JNIEnv* env, jobject /* this */, 
     publisher = participant->create_publisher(PUBLISHER_QOS_DEFAULT, nullptr);
     
     DataWriterQos wqos = DATAWRITER_QOS_DEFAULT;
-    wqos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+    if (is_reliable) {
+        wqos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+    } else {
+        wqos.reliability().kind = BEST_EFFORT_RELIABILITY_QOS;
+    }
     wqos.history().kind = KEEP_LAST_HISTORY_QOS;
     wqos.history().depth = 10;
+    
+    // Configure Liveliness for Node Discovery (Lease Duration = 3s)
+    wqos.liveliness().kind = AUTOMATIC_LIVELINESS_QOS;
+    wqos.liveliness().lease_duration = eprosima::fastrtps::Duration_t(3, 0);
     
     writer = publisher->create_datawriter(topic, wqos, nullptr);
 
