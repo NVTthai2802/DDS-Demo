@@ -1,18 +1,19 @@
-# Hệ thống Giám sát Môi trường P2P DDS Mesh
+# Nền tảng Học và Trình diễn DDS (DDS Demonstration Platform)
 
 Ứng dụng demo Publisher/Subscriber dựa trên chuẩn DDS (Data Distribution Service) cho kiến trúc mạng ngang hàng (Mesh/P2P) không cần máy chủ trung tâm (Brokerless).
 
 ## 1. Thành phần Dự án
-- **android_app**: Mã nguồn ứng dụng Android (Kotlin + C++ JNI) sử dụng Fast DDS. Hoạt động như một **Publisher** giả lập dữ liệu cảm biến môi trường.
-- **wsl_backend**: Mã nguồn C++ Fast DDS Subscriber chạy trên môi trường WSL2 (Ubuntu). Thu thập dữ liệu từ mạng nội bộ và xuất JSON.
-- **laptop_dashboard**: Ứng dụng Python Streamlit hiển thị Dashboard vẽ biểu đồ Plotly thời gian thực từ dữ liệu thu thập được.
-- **scripts**: Các script hỗ trợ tự động hoá quá trình build.
+- **android_app**: Mã nguồn ứng dụng Android (Kotlin + C++ JNI) sử dụng Fast DDS. Hoạt động như một **Publisher** giả lập dữ liệu cảm biến môi trường. Tích hợp khả năng thay đổi QoS (Reliable/Best Effort) động.
+- **wsl_backend**: Mã nguồn C++ Fast DDS Subscriber chạy trên môi trường WSL2 (Ubuntu). Thu thập dữ liệu từ mạng nội bộ, sử dụng **DomainParticipantListener** để bắt sự kiện Discovery (Node Join/Leave) và xuất JSON.
+- **laptop_dashboard**: Ứng dụng Python Streamlit kết hợp **SQLite** để lưu trữ và hiển thị Dashboard vẽ biểu đồ Plotly thời gian thực, quản lý Topology và phân tích hiệu năng QoS.
 
-## 2. Tiêu chí đã nghiệm thu
-- Tự động cấu hình kết nối **Many-to-Many** thông qua UDP Multicast (Tự động khám phá SPDP).
-- Không yêu cầu cấu hình IP tĩnh cho từng thiết bị.
-- Hệ thống hỗ trợ khả năng chịu lỗi (Fault Tolerance): Một node mất kết nối không làm sập mạng.
+## 2. Tiêu chí đã nghiệm thu (Bao gồm Giai đoạn 2)
+- Cấu hình kết nối **Many-to-Many** thông qua UDP Multicast (Tự động khám phá SPDP).
 - Giao tiếp ngang hàng (P2P), giảm thiểu Single Point of Failure (SPoF).
+- **Discovery Tracking:** Bắt sự kiện mạng (Node tham gia/rời khỏi mạng) ngay tức thì.
+- **Liveliness QoS:** Phát hiện thiết bị sập nguồn/rớt Wi-Fi sau 3 giây mất tín hiệu (Lease Duration).
+- **QoS Tuning:** Thay đổi QoS linh hoạt (Reliable/Best Effort) từ điện thoại.
+- **Hệ thống lưu trữ độc lập:** Dữ liệu được lưu trữ qua SQLite để tối ưu hóa việc phân tích và tránh nghẽn luồng Streamlit UI.
 
 ## 3. Hướng dẫn Triển khai (Tái lập Hệ thống)
 
@@ -42,7 +43,7 @@
    ```
 2. Biên dịch mã nguồn Backend:
    ```bash
-   cd wsl_backend/build
+   cd wsl_backend/backend/build
    cmake ..
    make -j4
    ```
@@ -66,8 +67,8 @@
 2. Kết nối thiết bị di động Android vào Laptop (hoặc dùng Emulator). 
    *Lưu ý: Điện thoại bắt buộc phải kết nối chung một mạng Wi-Fi (cùng Subnet) với Laptop.*
 3. Bấm **Build > Clean Project**, sau đó bấm nút **Play ▶️ (Run 'app')** để nạp lên thiết bị.
-4. Mở app trên điện thoại, bấm nút **"Khởi tạo DDS (Auto-Discovery)"** -> **"Start Publishing"**.
-5. Mở trình duyệt Web trên Laptop (Dashboard), dữ liệu môi trường sẽ được vẽ biểu đồ tự động.
+4. Mở app trên điện thoại, tuỳ chọn cấu hình QoS (Reliable vs Best Effort), rồi bấm nút **"Khởi tạo DDS (Auto-Discovery)"** -> **"Start Publishing"**.
+5. Mở trình duyệt Web trên Laptop (Dashboard), dữ liệu môi trường và cấu trúc liên kết mạng sẽ được vẽ biểu đồ tự động tại các Tab.
 
 ## 4. Tài liệu Kỹ thuật
 Vui lòng xem chi tiết file `Bao_Cao_Ky_Thuat_Bee_Labs.md` và `Network_Topology.md` ở thư mục gốc để nắm rõ lý do kỹ thuật, kiến trúc, đo lường Latency/QoS, và các vấn đề vướng mắc.

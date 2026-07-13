@@ -7,7 +7,17 @@
 
 ---
 
-## 1. Lý do lựa chọn Middleware (Fast DDS)
+## 1. Kiến trúc Hệ thống Giai đoạn 2 (DDS Demonstration Platform)
+Trong Giai đoạn 2, hệ thống đã được nâng cấp từ một ứng dụng truyền nhận cơ bản thành một **Nền tảng Trình diễn DDS** thực thụ:
+- **C++ Backend (WSL2):** 
+  - Triển khai **DomainParticipantListener** để theo dõi topology mạng thời gian thực (Node Join/Leave).
+  - Cấu hình **Liveliness QoS** (AUTOMATIC_LIVELINESS_QOS) với Lease Duration = 3s để phát hiện thiết bị mất kết nối (Dropped) khi rớt Wi-Fi hoặc tắt nguồn.
+- **Python Dashboard (Streamlit):**
+  - Sử dụng cơ sở dữ liệu **SQLite** (`dds_demo.db`) làm bộ đệm trung gian để lưu trữ cả siêu dữ liệu mạng (Participants info) lẫn Payload (Sensor data). Việc này ngăn chặn tình trạng thắt cổ chai ở UI khi tốc độ bản tin cao.
+  - Tách UI thành 3 Tab: Topology & Discovery, QoS & Analytics, Sensor Data.
+- **Android App:** Bổ sung giao diện thay đổi QoS (Reliable vs Best Effort) động tại thời điểm khởi tạo mạng DDS.
+
+## 2. Lý do lựa chọn Middleware (Fast DDS)
 Trong giai đoạn nghiên cứu, nhóm đã xem xét giữa hai middleware mã nguồn mở phổ biến: **Eclipse CycloneDDS** và **eProsima Fast DDS**.
 - **Quyết định:** Chọn **Fast DDS**.
 - **Lý do chính:** 
@@ -15,17 +25,19 @@ Trong giai đoạn nghiên cứu, nhóm đã xem xét giữa hai middleware mã 
   2. **Hỗ trợ C++ Hiện đại:** Fast DDS hỗ trợ C++11/14 tốt, rất thích hợp để viết JNI (Java Native Interface) giao tiếp với Kotlin.
   3. **Hiệu năng:** Tối ưu hóa đặc biệt tốt cho môi trường mạng Wi-Fi và nhúng, quản lý bộ nhớ linh hoạt với Fast CDR.
 
-## 2. Kết quả Đo lường QoS & Latency
+## 3. Kết quả Đo lường QoS & Latency
 Dựa trên thực tế thử nghiệm 5 thiết bị (1 Laptop + 4 Phone):
 - **Topology:** Mạng Wi-Fi nội bộ LAN (Subnet 192.168.0.x).
 - **Latency (Độ trễ):** Trung bình đạt `< 10ms` từ lúc Phone sinh dữ liệu đến lúc xuất hiện trên Streamlit Dashboard.
 - **Throughput:** Khi cả 4 thiết bị gửi bản tin ở tốc độ 1Hz, hệ thống dễ dàng xử lý mà không có hiện tượng bottleneck.
-- **Packet Loss:** Với thiết lập `RELIABLE_RELIABILITY_QOS` và `KEEP_LAST_HISTORY_QOS` (depth = 10), tỉ lệ rớt gói tin đạt **0%** trong điều kiện sóng Wi-Fi ổn định.
-- **Fault Tolerance:** Tắt ngẫu nhiên 1 Phone, hoặc ngắt kết nối Laptop rồi bật lại, các thiết bị lập tức khám phá lại nhau (Plug & Play) trong vòng < 3 giây nhờ cơ chế SPDP Multicast.
+- **Packet Loss:** 
+  - Với thiết lập `RELIABLE_RELIABILITY_QOS` và `KEEP_LAST_HISTORY_QOS` (depth = 10), tỉ lệ rớt gói tin đạt **0%** trong điều kiện sóng Wi-Fi ổn định.
+  - Khi người dùng chủ động chọn **Best Effort** trên Android, gói tin có thể bị rớt nếu mạng chập chờn, nhưng bù lại Latency giảm đáng kể.
+- **Fault Tolerance & Liveliness:** Tắt ngẫu nhiên 1 Phone, hoặc ngắt kết nối Laptop rồi bật lại, các thiết bị lập tức khám phá lại nhau (Plug & Play) trong vòng < 3 giây nhờ cơ chế SPDP Multicast. Nếu Android ngắt Wi-Fi, Listener trên Laptop sẽ log trạng thái Dropped ngay sau 3 giây nhờ QoS Liveliness.
 
-## 3. Các Lỗi / Vướng mắc Kỹ thuật đã gặp & Cách Xử Lý
+## 4. Các Lỗi / Vướng mắc Kỹ thuật đã gặp & Cách Xử Lý
 
-### 3.1. Rào cản Multicast trên Android (Lỗi IGMP / Wi-Fi Sleep)
+### 4.1. Rào cản Multicast trên Android (Lỗi IGMP / Wi-Fi Sleep)
 **Vấn đề:** 
 Android mặc định chặn các gói tin UDP Multicast để tiết kiệm pin. Khi Fast DDS cố gắng gửi bản tin SPDP (Simple Participant Discovery Protocol) qua địa chỉ `239.255.0.1`, nó bị hệ điều hành rớt gói, khiến Laptop không thể "nhìn thấy" điện thoại.
 
@@ -39,7 +51,7 @@ Android mặc định chặn các gói tin UDP Multicast để tiết kiệm pin
    multicastLock.acquire()
    ```
 
-### 3.2. Vấn đề Mạng Cô lập trên WSL2
+### 4.2. Vấn đề Mạng Cô lập trên WSL2
 **Vấn đề:**
 WSL2 mặc định sử dụng kiến trúc NAT (Network Address Translation). WSL2 có dải IP riêng biệt với Windows Host (ví dụ: `172.x.x.x`), khiến nó không thể hứng được gói tin UDP Multicast phát ra từ mạng LAN vật lý (`192.168.0.x`).
 
@@ -51,12 +63,12 @@ networkingMode=mirrored
 ```
 Ngoài ra, cần cấu hình mở tường lửa (Firewall) của Windows cho các cổng UDP `7400-8000` theo cả hai chiều Inbound và Outbound.
 
-### 3.3. Lỗi Crash App Android do sai Tên Thư Viện JNI
+### 4.3. Lỗi Crash App Android do sai Tên Thư Viện JNI
 **Vấn đề:**
 Khi ứng dụng khởi chạy trên thiết bị Android, nó bị văng (crash) ngay lập tức với lỗi `UnsatisfiedLinkError`.
 
 **Cách xử lý:**
 Nguyên nhân là do tên dự án trong file `CMakeLists.txt` C++ (`project("dsdemo")`) không khớp với lệnh tải thư viện trong Kotlin (`System.loadLibrary("ddsdemo")`). Đã sửa đổi file CMake để đồng nhất tên module `ddsdemo`, giúp Android nhận diện chính xác thư viện `.so`.
 
-## 4. Tổng Kết
-Hệ thống DDS Mesh đã hoạt động hoàn toàn theo đúng mô hình phi tập trung. Dữ liệu chạy trực tiếp theo cơ chế Many-to-Many giữa bất kỳ node nào Subscribe vào Topic `DeviceLogTopic`, không đi qua Broker. Kiến trúc hiện tại sẵn sàng để mở rộng quy mô lên hàng chục hoặc hàng trăm thiết bị IoT theo chuẩn công nghiệp.
+## 5. Tổng Kết
+Hệ thống DDS Mesh đã hoạt động hoàn toàn theo đúng mô hình phi tập trung. Dữ liệu chạy trực tiếp theo cơ chế Many-to-Many giữa bất kỳ node nào Subscribe vào Topic `DeviceLogTopic`, không đi qua Broker. Kiến trúc mới với việc tích hợp SQLite và Listener đã nâng tầm dự án thành một **Nền tảng Trình diễn DDS**, sẵn sàng để mở rộng quy mô lên hàng chục hoặc hàng trăm thiết bị IoT theo chuẩn công nghiệp, cho phép trình chiếu rõ ràng những ưu việt của DDS như QoS linh hoạt và Liveliness tracking.
