@@ -90,7 +90,12 @@ class DDSSubscriberThread(threading.Thread):
                         latency = (current_time - sample["timestamp"]) * 1000
                         self._insert_data(sample, latency, current_time)
                     elif msg.get("type") == "discovery":
-                        self._update_participant(msg["guid"], msg["name"], msg["event"])
+                        entity = msg.get("entity")
+                        if entity == "participant":
+                            self._update_participant(msg.get("guid"), msg.get("name"), msg.get("event"))
+                        elif entity == "publisher":
+                            # Có thể thêm logic lưu trạng thái DataReader matched ở đây
+                            pass
                 except json.JSONDecodeError:
                     pass
             else:

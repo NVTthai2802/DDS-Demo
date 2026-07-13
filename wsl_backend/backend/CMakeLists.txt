@@ -12,8 +12,12 @@ execute_process(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
 add_executable(subscriber
-    Subscriber.cpp
+    main.cpp
+    DDSEventListener.cpp
+    JsonOutputAdapter.cpp
     DeviceLog.cxx
     DeviceLogPubSubTypes.cxx
 )
