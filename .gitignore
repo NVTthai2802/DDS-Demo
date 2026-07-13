@@ -1,0 +1,26 @@
+# Build artifacts
+build/
+*.class
+*.apk
+*.aab
+*.jar
+*.aar
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Gradle files
+.gradle/
+local.properties
+
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+
+# C++ Build directories
+wsl_backend/build/
+*.o
+*.so

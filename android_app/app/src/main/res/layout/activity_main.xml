@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DDS Mesh Publisher"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="10dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Auto-Discovery (Multicast SPDP)"
+        android:textSize="14sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="20dp"/>
+
+    <Button
+        android:id="@+id/btnConnect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Khoi tao DDS (Auto-Discovery)"
+        android:layout_marginBottom="20dp"/>
+
+    <Button
+        android:id="@+id/btnStartPublish"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Start Publishing"
+        android:enabled="false"
+        android:layout_marginBottom="20dp"/>
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Trang thai: Chua khoi tao"
+        android:textSize="16sp"
+        android:textColor="#FF0000"/>
+</LinearLayout>
