@@ -8,8 +8,6 @@ import android.widget.Toast
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.widget.CheckBox
-import java.util.Timer
-import kotlin.concurrent.timerTask
 
 class MainActivity : AppCompatActivity() {
 
@@ -21,7 +19,8 @@ class MainActivity : AppCompatActivity() {
 
     private var isConnected = false
     private var isPublishing = false
-    private var publishTimer: Timer? = null
+    
+    private lateinit var sensorSimulator: SensorSimulator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,8 +37,18 @@ class MainActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         cbReliable = findViewById(R.id.cbReliable)
 
+        // Initialize Simulator
+        sensorSimulator = SensorSimulator { temp, hum, co2, light, occ, batt, sig ->
+            if (isPublishing) {
+                DDSManager.publishDataNative(
+                    "MeetingRoom-01", "Environmental Sensor", 
+                    temp, hum, co2, light, occ, batt, sig
+                )
+            }
+        }
+
         btnConnect.setOnClickListener {
-            val success = startDDS(cbReliable.isChecked)
+            val success = DDSManager.startDDSNative(cbReliable.isChecked)
             if (success) {
                 isConnected = true
                 tvStatus.text = "Trang thai: Da khoi tao DDS (Auto-Discovery)"
@@ -56,54 +65,22 @@ class MainActivity : AppCompatActivity() {
                 isPublishing = true
                 btnStartPublish.text = "Stop Publishing"
                 tvStatus.text = "Trang thai: Dang gui du lieu..."
-                
-                // Send data every 1000ms (1Hz for sensors)
-                publishTimer = Timer()
-                publishTimer?.scheduleAtFixedRate(timerTask {
-                    // Simulate random environmental data
-                    val temp = 26.0 + Math.random() * 2.0
-                    val hum = 55.0 + Math.random() * 5.0
-                    val co2 = 800 + (Math.random() * 50).toInt()
-                    val light = 450 + (Math.random() * 100).toInt()
-                    val occ = Math.random() > 0.5
-                    val batt = 100 - (Math.random() * 20).toInt()
-                    val sig = -50 - (Math.random() * 10).toInt()
-                    
-                    publishData("MeetingRoom-01", "Environmental Sensor", temp, hum, co2, light, occ, batt, sig)
-                }, 0, 1000)
-                
+                sensorSimulator.start()
             } else {
                 isPublishing = false
                 btnStartPublish.text = "Start Publishing"
                 tvStatus.text = "Trang thai: Da dung gui du lieu."
-                publishTimer?.cancel()
+                sensorSimulator.stop()
             }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        publishTimer?.cancel()
+        sensorSimulator.stop()
         if (::multicastLock.isInitialized && multicastLock.isHeld) {
             multicastLock.release()
         }
-        stopDDS()
-    }
-
-    /**
-     * Native C++ functions (JNI)
-     */
-    external fun startDDS(isReliable: Boolean): Boolean
-    external fun stopDDS()
-    external fun publishData(
-        deviceId: String, deviceType: String, temp: Double, hum: Double, 
-        co2: Int, light: Int, occ: Boolean, batt: Int, sig: Int
-    )
-
-    companion object {
-        // Load C++ library on App startup
-        init {
-            System.loadLibrary("ddsdemo")
-        }
+        DDSManager.stopDDSNative()
     }
 }

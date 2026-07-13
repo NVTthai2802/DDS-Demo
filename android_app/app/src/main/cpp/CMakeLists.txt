@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22.1)
 project("ddsdemo")
 
 # Thu muc chua thu vien DDS da duoc bien dich cheo bang script (dds_libs)
-set(DDS_LIBS_DIR "C:/Project TTS/dds_demo/android_app/dds_libs")
+set(DDS_LIBS_DIR "C:/Project TTS/DDS-Demo/android_app/dds_libs")
 
 # Include headers
 include_directories(
@@ -15,7 +15,9 @@ add_library(
         ${CMAKE_PROJECT_NAME}
         SHARED
         native-lib.cpp
-        DeviceLog.cpp
+        DDSPublisher.cpp
+        DeviceLog.cxx
+        DeviceLogPubSubTypes.cxx
 )
 
 # Tim thu vien log mac dinh cua Android

@@ -1,0 +1,13 @@
+struct DeviceLog {
+    string device_id;
+    string device_type;
+    double temperature;
+    double humidity;
+    long co2;
+    long light;
+    boolean occupancy;
+    long battery;
+    long signal_strength;
+    double timestamp;
+    long sequence_number;
+};
