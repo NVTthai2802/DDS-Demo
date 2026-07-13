@@ -43,7 +43,7 @@
    ```
 2. Biên dịch mã nguồn Backend:
    ```bash
-   cd wsl_backend/backend/build
+   cd "/mnt/c/Project TTS/DDS-Demo/wsl_backend/backend/build"
    cmake ..
    make -j4
    ```
@@ -51,7 +51,7 @@
 ### Bước 3: Cài đặt và Chạy Dashboard (Python Streamlit)
 1. Cài đặt môi trường Python ảo (trên Terminal Ubuntu):
    ```bash
-   cd laptop_dashboard
+   cd "/mnt/c/Project TTS/DDS-Demo/laptop_dashboard"
    python3 -m venv venv
    source venv/bin/activate
    pip install -r requirements.txt
