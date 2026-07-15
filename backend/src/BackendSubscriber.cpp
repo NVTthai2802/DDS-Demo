@@ -35,7 +35,7 @@ bool BackendSubscriber::init(uint32_t domain_id, const std::string& topic_name) 
         DomainParticipantQos pqos;
         pqos.name("Backend_Dashboard_Participant");
 
-        participant_ = DomainParticipantFactory::get_instance()->create_participant(domain_id, pqos, &listener_);
+        participant_ = DomainParticipantFactory::get_instance()->create_participant(domain_id, pqos, &part_listener_);
         if (participant_ == nullptr) {
             throw std::runtime_error("Failed to create DomainParticipant");
         }
@@ -53,11 +53,9 @@ bool BackendSubscriber::init(uint32_t domain_id, const std::string& topic_name) 
         }
 
         DataReaderQos rqos = DATAREADER_QOS_DEFAULT;
-        // Chúng ta muốn nhận được dữ liệu từ cả người gửi dùng BEST_EFFORT và RELIABLE,
-        // nên cần set QoS của Reader ở mức BEST_EFFORT để match được với tất cả.
         rqos.reliability().kind = BEST_EFFORT_RELIABILITY_QOS; 
 
-        reader_ = subscriber_->create_datareader(topic_, rqos, &listener_);
+        reader_ = subscriber_->create_datareader(topic_, rqos, &read_listener_);
         if (reader_ == nullptr) {
             throw std::runtime_error("Failed to create DataReader");
         }
@@ -84,7 +82,7 @@ void BackendSubscriber::run() {
     }
 }
 
-void BackendSubscriber::SubListener::on_participant_discovery(
+void BackendSubscriber::PartListener::on_participant_discovery(
         DomainParticipant* participant,
         eprosima::fastrtps::rtps::ParticipantDiscoveryInfo&& info) {
     (void)participant;
@@ -120,7 +118,7 @@ void BackendSubscriber::SubListener::on_participant_discovery(
     }
 }
 
-void BackendSubscriber::SubListener::on_subscription_matched(
+void BackendSubscriber::ReadListener::on_subscription_matched(
         DataReader* reader,
         const SubscriptionMatchedStatus& info) {
     try {
@@ -134,8 +132,8 @@ void BackendSubscriber::SubListener::on_subscription_matched(
         if (info.current_count_change == 1) {
             log["status"] = "MATCHED";
             
-            PublicationBuiltinTopicData pub_data;
-            if (reader->get_matched_publication_data(info.last_publication_handle, pub_data) == ReturnCode_t::RETCODE_OK) {
+            eprosima::fastdds::dds::builtin::PublicationBuiltinTopicData pub_data;
+            if (reader->get_matched_publication_data(pub_data, info.last_publication_handle) == ReturnCode_t::RETCODE_OK) {
                 if (pub_data.reliability.kind == RELIABLE_RELIABILITY_QOS) {
                     log["qos_reliability"] = "RELIABLE";
                 } else {
@@ -164,7 +162,7 @@ void BackendSubscriber::SubListener::on_subscription_matched(
     }
 }
 
-void BackendSubscriber::SubListener::on_data_available(DataReader* reader) {
+void BackendSubscriber::ReadListener::on_data_available(DataReader* reader) {
     try {
         SensorData data;
         SampleInfo info;

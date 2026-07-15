@@ -27,21 +27,22 @@ private:
     eprosima::fastdds::dds::DataReader* reader_;
     eprosima::fastdds::dds::TypeSupport type_;
 
-    class SubListener : public eprosima::fastdds::dds::DomainParticipantListener,
-                        public eprosima::fastdds::dds::DataReaderListener {
+    class PartListener : public eprosima::fastdds::dds::DomainParticipantListener {
     public:
-        SubListener() = default;
-        ~SubListener() override = default;
-
+        PartListener() = default;
+        ~PartListener() override = default;
         void on_participant_discovery(
                 eprosima::fastdds::dds::DomainParticipant* participant,
                 eprosima::fastrtps::rtps::ParticipantDiscoveryInfo&& info) override;
+    } part_listener_;
 
+    class ReadListener : public eprosima::fastdds::dds::DataReaderListener {
+    public:
+        ReadListener() = default;
+        ~ReadListener() override = default;
         void on_subscription_matched(
                 eprosima::fastdds::dds::DataReader* reader,
                 const eprosima::fastdds::dds::SubscriptionMatchedStatus& info) override;
-
         void on_data_available(eprosima::fastdds::dds::DataReader* reader) override;
-
-    } listener_;
+    } read_listener_;
 };
