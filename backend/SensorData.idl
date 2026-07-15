@@ -1,0 +1,12 @@
+struct SensorData {
+    string device_id;
+    unsigned long sequence_number;
+    unsigned long long timestamp;
+    float temperature;
+    float humidity;
+    float co2;
+    float light;
+    boolean occupancy;
+    float battery;
+    float signal_strength;
+};
