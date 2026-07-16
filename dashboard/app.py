@@ -52,8 +52,18 @@ def start_backend():
                         log_file.write(f"Line content: {line.strip()}\n")
                         log_file.flush()
 
-    t = threading.Thread(target=read_output, args=(process,), daemon=True)
-    t.start()
+    def read_stderr(proc):
+        with open("dashboard_error.log", "a", encoding="utf-8") as log_file:
+            for line in iter(proc.stderr.readline, ''):
+                if line:
+                    log_file.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [backend stderr] {line.strip()}\n")
+                    log_file.flush()
+
+    t_stdout = threading.Thread(target=read_output, args=(process,), daemon=True)
+    t_stdout.start()
+    
+    t_stderr = threading.Thread(target=read_stderr, args=(process,), daemon=True)
+    t_stderr.start()
     return process
 
 start_backend()
