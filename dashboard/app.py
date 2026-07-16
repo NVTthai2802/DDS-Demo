@@ -12,7 +12,11 @@ import sys
 st.set_page_config(page_title="Mesh DDS Dashboard", layout="wide")
 
 DB_PATH = os.environ.get("DB_PATH", "history.db")
-db = Database(DB_PATH)
+@st.cache_resource
+def get_database():
+    return Database(DB_PATH)
+
+db = get_database()
 
 @st.cache_resource
 def start_backend():
@@ -27,23 +31,26 @@ def start_backend():
         return None
 
     def read_output(proc):
-        for line in iter(proc.stdout.readline, ''):
-            if line:
-                try:
-                    log = json.loads(line)
-                    if log.get('event') == 'spdp':
-                        db.update_spdp(log.get('guid'), log.get('name'), log.get('status'))
-                    elif log.get('event') == 'sedp':
-                        db.update_sedp(log.get('writer_guid'), log.get('status'), log.get('qos_reliability'))
-                    elif log.get('event') == 'liveliness':
-                        db.update_liveliness(log.get('writer_guid'), log.get('alive_count_change', 0), log.get('not_alive_count_change', 0))
-                    elif log.get('event') == 'data':
-                        db.insert_data(log)
-                except json.JSONDecodeError:
-                    pass
-                except Exception as e:
-                    # Bắt rộng lỗi xử lý logic song song theo yêu cầu, không để luồng sập ngầm
-                    print(f"Error handling data line: {e}")
+        with open("dashboard_error.log", "a", encoding="utf-8") as log_file:
+            for line in iter(proc.stdout.readline, ''):
+                if line:
+                    try:
+                        log = json.loads(line)
+                        if log.get('event') == 'spdp':
+                            db.update_spdp(log.get('guid'), log.get('name'), log.get('status'))
+                        elif log.get('event') == 'sedp':
+                            db.update_sedp(log.get('writer_guid'), log.get('status'), log.get('qos_reliability'))
+                        elif log.get('event') == 'liveliness':
+                            db.update_liveliness(log.get('writer_guid'), log.get('alive_count_change', 0), log.get('not_alive_count_change', 0))
+                        elif log.get('event') == 'data':
+                            db.insert_data(log)
+                    except json.JSONDecodeError:
+                        pass
+                    except Exception as e:
+                        # Ghi log ra file để dễ debug thay vì print ngầm
+                        log_file.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Error handling data line: {e}\n")
+                        log_file.write(f"Line content: {line.strip()}\n")
+                        log_file.flush()
 
     t = threading.Thread(target=read_output, args=(process,), daemon=True)
     t.start()
