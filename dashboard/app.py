@@ -14,7 +14,7 @@ st.set_page_config(page_title="Mesh DDS Dashboard", layout="wide")
 DB_PATH = os.environ.get("DB_PATH", "history.db")
 @st.cache_resource
 def get_database():
-    return Database(DB_PATH)
+    return Database(DB_PATH, fresh_start=True)
 
 db = get_database()
 
