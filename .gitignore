@@ -35,6 +35,8 @@ captures/
 .externalNativeBuild/
 android_app/build/
 android_app/app/build/
+android_app/app/src/main/cpp/thirdparty_native/
+backend/_native_deps_src/
 
 # Fast DDS Generated (no longer generated for SensorData, now manually coded)
 *PubSubTypes.h

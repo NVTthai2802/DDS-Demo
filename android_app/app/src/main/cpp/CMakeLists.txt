@@ -14,13 +14,11 @@ FetchContent_MakeAvailable(asio)
 include_directories(${asio_SOURCE_DIR}/asio/include)
 add_definitions(-DASIO_STANDALONE)
 
-# 2. Fast-CDR
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(fastcdr
-    GIT_REPOSITORY https://github.com/eProsima/Fast-CDR.git
-    GIT_TAG v1.1.0
-)
-FetchContent_MakeAvailable(fastcdr)
+# 2. foonathan_memory (Prebuilt)
+# foonathan_memory không tự build được như fastcdr, phải build sẵn ngoài bằng 
+# scripts/build_foonathan_memory_android.bat trước khi Gradle sync.
+# Dùng _DIR (cache) thay vì CMAKE_PREFIX_PATH để find_package() trong Fast-DDS chắc chắn tìm được.
+set(foonathan_memory_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty_native/foonathan_memory/${ANDROID_ABI}/lib/foonathan_memory/cmake" CACHE PATH "" FORCE)
 
 # 3. Fast-DDS
 set(ASIO_INCLUDE_DIR ${asio_SOURCE_DIR}/asio/include CACHE PATH "" FORCE)

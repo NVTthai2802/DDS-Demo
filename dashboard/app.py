@@ -92,6 +92,26 @@ with col2:
             fig_hum = px.line(data_df, x='id', y='humidity', color='device_id')
             st.plotly_chart(fig_hum, use_container_width=True)
             
+        col_c, col_l = st.columns(2)
+        with col_c:
+            st.markdown("**CO2 Levels (ppm)**")
+            fig_co2 = px.line(data_df, x='id', y='co2', color='device_id')
+            st.plotly_chart(fig_co2, use_container_width=True)
+        with col_l:
+            st.markdown("**Ambient Light (lux)**")
+            fig_light = px.line(data_df, x='id', y='light', color='device_id')
+            st.plotly_chart(fig_light, use_container_width=True)
+            
+        col_b, col_s = st.columns(2)
+        with col_b:
+            st.markdown("**Battery Level (%)**")
+            fig_bat = px.line(data_df, x='id', y='battery', color='device_id')
+            st.plotly_chart(fig_bat, use_container_width=True)
+        with col_s:
+            st.markdown("**Signal Strength (dBm)**")
+            fig_sig = px.line(data_df, x='id', y='signal_strength', color='device_id')
+            st.plotly_chart(fig_sig, use_container_width=True)
+            
         st.markdown("**Packet Loss & Reliability**")
         loss_df = db.get_packet_loss_df()
         if not loss_df.empty:

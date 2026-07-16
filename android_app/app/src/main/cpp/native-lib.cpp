@@ -140,6 +140,11 @@ private:
             data.timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
             data.temperature(25.0f + (rand() % 100) / 10.0f);
             data.humidity(50.0f + (rand() % 100) / 10.0f);
+            data.co2(400.0f + (rand() % 200)); // 400-600 ppm
+            data.light(300.0f + (rand() % 500)); // 300-800 lux
+            data.occupancy((rand() % 100) > 80); // 20% true
+            data.battery(80.0f + (rand() % 20)); // 80-100%
+            data.signal_strength(-40.0f - (rand() % 40)); // -40 to -80 dBm
             
             if (writer_) {
                 writer_->write(&data);

@@ -13,15 +13,16 @@ Hệ thống thử nghiệm giao thức **Data Distribution Service (DDS)** trê
 ## Cài đặt & Build
 
 ### 1. Build C++ Backend (Native Windows)
-Dự án yêu cầu cài đặt **Visual Studio 2022 Build Tools (MSVC v143)** và vcpkg.
-Mở **Developer Command Prompt for VS 2022** và chạy:
+**Điều kiện tiên quyết:** Bạn phải build & install Fast DDS 2.11.2 (từ git tag) và Fast-CDR vào thư mục local trước. Quá trình này được thực hiện thông qua script `backend/Fast-DDS/configure_fastdds.bat` và `build_fastdds.bat`.
+
+Do máy hiện tại cài Visual Studio 2026 Build Tools (v145) làm mặc định (gây lỗi biên dịch `_Mtx_init` trong `TimedMutex.hpp`), chúng ta bắt buộc phải dùng toolset **MSVC v143**. Đồng thời, quá trình build phải ưu tiên liên kết với Fast DDS 2.11.2 tự build thay vì bản 3.x từ vcpkg.
+
+Vì vậy, **không mở Developer Command Prompt for VS 2022 mặc định từ Start Menu**. Thay vào đó, mở Command Prompt bình thường và chạy:
 ```cmd
-cd backend
-mkdir build_app && cd build_app
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_PREFIX_PATH="<đường_dẫn_tới_vcpkg_và_fastdds>" -DCMAKE_TOOLCHAIN_FILE="<đường_dẫn_tới_vcpkg.cmake>" ..
-cmake --build .
+cd C:\Project TTS\DDS-Demo
+scripts\build_backend.bat
 ```
-*(Bạn cũng có thể chạy trực tiếp script PowerShell `scripts/build_backend.ps1` nếu đã setup vcpkg đúng)*
+*(Script này sẽ tự động gọi `vcvars64.bat -vcvars_ver=14.44` để nạp đúng toolset v143, thiết lập `CMAKE_PREFIX_PATH` trỏ vào bản Fast DDS local, rồi cấu hình `CMAKE_TOOLCHAIN_FILE` cho vcpkg trước khi gọi Ninja build).*
 
 ### 2. Build Android App
 - Mở thư mục `android_app/` bằng **Android Studio**.

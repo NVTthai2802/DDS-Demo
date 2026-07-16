@@ -29,6 +29,11 @@ class Database:
                 timestamp INTEGER,
                 temperature REAL,
                 humidity REAL,
+                co2 REAL,
+                light REAL,
+                occupancy BOOLEAN,
+                battery REAL,
+                signal_strength REAL,
                 latency_ms INTEGER,
                 receive_time INTEGER
             )
@@ -75,10 +80,10 @@ class Database:
         c = self.conn.cursor()
         latency = data['receive_time'] - data['timestamp']
         c.execute('''
-            INSERT INTO sensor_data (device_id, sequence_number, timestamp, temperature, humidity, latency_ms, receive_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO sensor_data (device_id, sequence_number, timestamp, temperature, humidity, co2, light, occupancy, battery, signal_strength, latency_ms, receive_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (data['device_id'], data['sequence_number'], data['timestamp'], 
-              data['temperature'], data['humidity'], latency, data['receive_time']))
+              data['temperature'], data['humidity'], data.get('co2', 0), data.get('light', 0), data.get('occupancy', False), data.get('battery', 0), data.get('signal_strength', 0), latency, data['receive_time']))
         
         if 'writer_guid' in data:
             now = datetime.now()
