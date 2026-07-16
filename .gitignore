@@ -36,15 +36,20 @@ captures/
 android_app/build/
 android_app/app/build/
 
-# Fast DDS Generated
+# Fast DDS Generated (no longer generated for SensorData, now manually coded)
 *PubSubTypes.h
 *PubSubTypes.cxx
 *TypeObject.h
 *TypeObject.cxx
 *CdrAux.hpp
 *CdrAux.ipp
-SensorData.h
-SensorData.cxx
+
+# Windows Native Build Folders
+backend/Fast-CDR/
+backend/Fast-DDS/
+backend/install/
+backend/vcpkg/
+backend/build_app/
 
 # OS & Environment
 .DS_Store

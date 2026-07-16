@@ -53,7 +53,10 @@ bool BackendSubscriber::init(uint32_t domain_id, const std::string& topic_name) 
         }
 
         DataReaderQos rqos = DATAREADER_QOS_DEFAULT;
-        rqos.reliability().kind = BEST_EFFORT_RELIABILITY_QOS; 
+        rqos.data_sharing().off();
+        rqos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+        rqos.liveliness().kind = AUTOMATIC_LIVELINESS_QOS;
+        rqos.liveliness().lease_duration = eprosima::fastrtps::Duration_t(3, 0);
 
         reader_ = subscriber_->create_datareader(topic_, rqos, &read_listener_);
         if (reader_ == nullptr) {
@@ -125,8 +128,10 @@ void BackendSubscriber::ReadListener::on_subscription_matched(
         json log;
         log["event"] = "sedp";
 
+        eprosima::fastrtps::rtps::GUID_t writer_guid;
+        eprosima::fastrtps::rtps::iHandle2GUID(writer_guid, info.last_publication_handle);
         std::stringstream ss;
-        ss << info.last_publication_handle;
+        ss << writer_guid;
         log["writer_guid"] = ss.str();
 
         if (info.current_count_change == 1) {
@@ -167,7 +172,10 @@ void BackendSubscriber::ReadListener::on_data_available(DataReader* reader) {
         SensorData data;
         SampleInfo info;
 
+        std::cout << "{\"event\":\"debug\", \"message\":\"on_data_available called!\"}" << std::endl;
+
         while (reader->take_next_sample(&data, &info) == ReturnCode_t::RETCODE_OK) {
+            std::cout << "{\"event\":\"debug\", \"message\":\"take_next_sample OK, valid_data=" << info.valid_data << "\"}" << std::endl;
             if (info.valid_data) {
                 json log;
                 log["event"] = "data";
@@ -203,5 +211,27 @@ void BackendSubscriber::ReadListener::on_data_available(DataReader* reader) {
         err["event"] = "error";
         err["message"] = "Unknown data read error";
         std::cout << err.dump() << std::endl;
+    }
+}
+
+void BackendSubscriber::ReadListener::on_liveliness_changed(
+        DataReader* reader,
+        const LivelinessChangedStatus& status) {
+    try {
+        json log;
+        log["event"] = "liveliness";
+        log["alive_count"] = status.alive_count;
+        log["not_alive_count"] = status.not_alive_count;
+        log["alive_count_change"] = status.alive_count_change;
+        log["not_alive_count_change"] = status.not_alive_count_change;
+        
+        eprosima::fastrtps::rtps::GUID_t writer_guid;
+        eprosima::fastrtps::rtps::iHandle2GUID(writer_guid, status.last_publication_handle);
+        std::stringstream ss;
+        ss << writer_guid;
+        log["writer_guid"] = ss.str();
+        
+        std::cout << log.dump() << std::endl;
+    } catch (...) {
     }
 }

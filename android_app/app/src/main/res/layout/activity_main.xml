@@ -5,6 +5,14 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+    <EditText
+        android:id="@+id/etDeviceId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Device ID (e.g. Phone-01)"
+        android:inputType="text"
+        android:layout_marginBottom="16dp" />
+
     <TextView
         android:id="@+id/tvStatus"
         android:layout_width="match_parent"
@@ -17,6 +25,23 @@
         android:id="@+id/btnStart"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Start DDS Mesh" />
+        android:text="Start DDS Mesh"
+        android:layout_marginBottom="16dp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#EEEEEE"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/tvLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Incoming Messages:\n"
+            android:textSize="14sp"
+            android:fontFamily="monospace" />
+    </ScrollView>
 
 </LinearLayout>

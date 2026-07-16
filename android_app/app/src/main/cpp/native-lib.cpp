@@ -11,6 +11,8 @@
 #include <fastdds/dds/publisher/DataWriter.hpp>
 #include <fastdds/dds/subscriber/Subscriber.hpp>
 #include <fastdds/dds/subscriber/DataReader.hpp>
+#include <fastdds/dds/subscriber/DataReaderListener.hpp>
+#include <fastdds/dds/subscriber/SampleInfo.hpp>
 #include <fastdds/dds/topic/Topic.hpp>
 
 #include "SensorDataPubSubTypes.h"
@@ -20,6 +22,55 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 using namespace eprosima::fastdds::dds;
+
+JavaVM* g_jvm = nullptr;
+jobject g_mainActivity = nullptr;
+
+class SubListener : public DataReaderListener {
+public:
+    void on_data_available(DataReader* reader) override {
+        SensorData data;
+        SampleInfo info;
+        while (reader->take_next_sample(&data, &info) == ReturnCode_t::RETCODE_OK) {
+            if (info.valid_data) {
+                long long current_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count();
+                long long latency = current_time - data.timestamp();
+                
+                // C++ to Kotlin via JNI
+                if (g_jvm && g_mainActivity) {
+                    JNIEnv* env;
+                    int envStat = g_jvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+                    bool attached = false;
+                    if (envStat == JNI_EDETACHED) {
+                        if (g_jvm->AttachCurrentThread(&env, NULL) != 0) {
+                            LOGE("Failed to attach thread for JNI");
+                            return;
+                        }
+                        attached = true;
+                    }
+                    
+                    jclass clazz = env->GetObjectClass(g_mainActivity);
+                    jmethodID methodId = env->GetMethodID(clazz, "onSensorDataReceived", "(Ljava/lang/String;IFFJJ)V");
+                    if (methodId) {
+                        jstring jDeviceId = env->NewStringUTF(data.device_id().c_str());
+                        env->CallVoidMethod(g_mainActivity, methodId, jDeviceId, 
+                                            (jint)data.sequence_number(), (jfloat)data.temperature(), (jfloat)data.humidity(), 
+                                            (jlong)data.timestamp(), (jlong)latency);
+                        env->DeleteLocalRef(jDeviceId);
+                    } else {
+                        LOGE("Could not find method onSensorDataReceived");
+                    }
+                    env->DeleteLocalRef(clazz);
+                    
+                    if (attached) {
+                        g_jvm->DetachCurrentThread();
+                    }
+                }
+            }
+        }
+    }
+};
 
 class MeshDdsNode {
 public:
@@ -45,10 +96,14 @@ public:
         topic_ = participant_->create_topic("SensorData", type_.get_type_name(), TOPIC_QOS_DEFAULT);
         
         publisher_ = participant_->create_publisher(PUBLISHER_QOS_DEFAULT);
-        writer_ = publisher_->create_datawriter(topic_, DATAWRITER_QOS_DEFAULT);
+        DataWriterQos wqos = DATAWRITER_QOS_DEFAULT;
+        wqos.liveliness().kind = AUTOMATIC_LIVELINESS_QOS;
+        wqos.liveliness().lease_duration = eprosima::fastrtps::Duration_t(3, 0);
+        wqos.liveliness().announcement_period = eprosima::fastrtps::Duration_t(1, 0);
+        writer_ = publisher_->create_datawriter(topic_, wqos);
         
         subscriber_ = participant_->create_subscriber(SUBSCRIBER_QOS_DEFAULT);
-        reader_ = subscriber_->create_datareader(topic_, DATAREADER_QOS_DEFAULT);
+        reader_ = subscriber_->create_datareader(topic_, DATAREADER_QOS_DEFAULT, &sub_listener_);
 
         running_ = true;
         pub_thread_ = std::thread(&MeshDdsNode::publish_loop, this);
@@ -104,13 +159,17 @@ private:
     std::string device_id_;
     std::thread pub_thread_;
     std::atomic<bool> running_;
+    SubListener sub_listener_;
 };
 
 MeshDdsNode* g_node = nullptr;
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_bee_meshdds_MainActivity_startDds(JNIEnv* env, jobject /* this */, jstring deviceId) {
+Java_com_bee_meshdds_MainActivity_startDds(JNIEnv* env, jobject thiz, jstring deviceId) {
     if (!g_node) {
+        env->GetJavaVM(&g_jvm);
+        g_mainActivity = env->NewGlobalRef(thiz);
+        
         g_node = new MeshDdsNode();
         const char* device_id_cstr = env->GetStringUTFChars(deviceId, 0);
         g_node->start(std::string(device_id_cstr));
@@ -125,4 +184,9 @@ Java_com_bee_meshdds_MainActivity_stopDds(JNIEnv* env, jobject /* this */) {
         delete g_node;
         g_node = nullptr;
     }
+    if (g_mainActivity) {
+        env->DeleteGlobalRef(g_mainActivity);
+        g_mainActivity = nullptr;
+    }
 }
+

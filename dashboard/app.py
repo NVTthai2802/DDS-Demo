@@ -16,13 +16,9 @@ db = Database(DB_PATH)
 
 @st.cache_resource
 def start_backend():
-    backend_exe = os.path.join(os.path.dirname(__file__), '..', 'backend', 'build', 'backend_node')
-    
-    # Try WSL2 Ubuntu execution first
-    cmd = ['wsl', '-d', 'Ubuntu-24.04', backend_exe]
-    if not os.path.exists(backend_exe) or sys.platform != 'win32':
-        # On pure Linux or if WSL path not strictly found, try native execution
-        cmd = [backend_exe]
+    # Use native Windows executable directly since we dropped WSL2
+    backend_exe = os.path.join(os.path.dirname(__file__), '..', 'backend', 'build_app', 'backend_node.exe')
+    cmd = [backend_exe]
 
     try:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -39,6 +35,8 @@ def start_backend():
                         db.update_spdp(log.get('guid'), log.get('name'), log.get('status'))
                     elif log.get('event') == 'sedp':
                         db.update_sedp(log.get('writer_guid'), log.get('status'), log.get('qos_reliability'))
+                    elif log.get('event') == 'liveliness':
+                        db.update_liveliness(log.get('writer_guid'), log.get('alive_count_change', 0), log.get('not_alive_count_change', 0))
                     elif log.get('event') == 'data':
                         db.insert_data(log)
                 except json.JSONDecodeError:
@@ -93,6 +91,11 @@ with col2:
             st.markdown("**Humidity (%)**")
             fig_hum = px.line(data_df, x='id', y='humidity', color='device_id')
             st.plotly_chart(fig_hum, use_container_width=True)
+            
+        st.markdown("**Packet Loss & Reliability**")
+        loss_df = db.get_packet_loss_df()
+        if not loss_df.empty:
+            st.dataframe(loss_df, use_container_width=True)
             
     else:
         st.info("No data received yet.")

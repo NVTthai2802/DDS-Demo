@@ -8,7 +8,7 @@
 #include <fastdds/dds/topic/Topic.hpp>
 #include <fastdds/dds/domain/qos/DomainParticipantQos.hpp>
 
-#include "SensorDataPubSubTypes.h"
+#include "SensorData.h"
 #include <mutex>
 #include <string>
 
@@ -44,5 +44,8 @@ private:
                 eprosima::fastdds::dds::DataReader* reader,
                 const eprosima::fastdds::dds::SubscriptionMatchedStatus& info) override;
         void on_data_available(eprosima::fastdds::dds::DataReader* reader) override;
+        void on_liveliness_changed(
+                eprosima::fastdds::dds::DataReader* reader,
+                const eprosima::fastdds::dds::LivelinessChangedStatus& status) override;
     } read_listener_;
 };

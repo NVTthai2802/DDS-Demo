@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DDS Mesh Demo - Bee Labs</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/dracula.min.css">
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <h2>DDS Mesh Demo</h2>
+                <h3>Bee Labs</h3>
+                <p>Mạng ngang hàng (P2P) Many-to-Many với Fast DDS</p>
+            </section>
+            
+            <section>
+                <h2>Vấn Đề</h2>
+                <ul>
+                    <li>IoT hiện tại thường dùng mô hình Client-Server (MQTT, HTTP).</li>
+                    <li>Điểm nghẽn ở Server/Broker (Single Point of Failure).</li>
+                    <li>Độ trễ cao khi thiết bị nằm cạnh nhau nhưng phải qua Server.</li>
+                </ul>
+            </section>
+            
+            <section>
+                <h2>Giải Pháp: DDS</h2>
+                <ul>
+                    <li><b>Data Distribution Service (DDS):</b> Chuẩn giao tiếp Publish-Subscribe phi tập trung.</li>
+                    <li><b>Many-to-Many:</b> Các Node giao tiếp trực tiếp (P2P) qua mạng nội bộ.</li>
+                    <li><b>Dynamic Discovery (SPDP/SEDP):</b> Tự động phát hiện và kết nối với Node mới.</li>
+                </ul>
+            </section>
+            
+            <section>
+                <h2>Kiến Trúc Hệ Thống</h2>
+                <ul>
+                    <li><b>Android Devices:</b> Vừa đóng vai trò Publisher (Gửi dữ liệu cảm biến) vừa là Subscriber (Nhận dữ liệu từ thiết bị khác).</li>
+                    <li><b>C++ Backend (Laptop):</b> Node Subscriber thu thập dữ liệu tổng hợp.</li>
+                    <li><b>Streamlit Dashboard:</b> Hiển thị Real-time Data, Latency, Packet Loss, và trạng thái Liveliness.</li>
+                </ul>
+            </section>
+            
+            <section>
+                <h2>Fault Tolerance (Khả năng chịu lỗi)</h2>
+                <ul>
+                    <li><b>Liveliness QoS:</b> Cơ chế theo dõi trạng thái sống của Node.</li>
+                    <li><b>Tự Động Phát Hiện:</b> Nếu 1 Node (Phone/Laptop) rớt mạng, các Node khác tự nhận biết ngay lập tức (Lease Duration).</li>
+                    <li><b>Không Sập Dây Chuyền:</b> Mạng vẫn hoạt động bình thường kể cả khi mất đi 1 hay nhiều thiết bị.</li>
+                </ul>
+            </section>
+            
+            <section>
+                <h2>QoS (Quality of Service)</h2>
+                <ul>
+                    <li><b>Reliability:</b> Đảm bảo truyền nhận tin cậy (RELIABLE) trong môi trường Wi-Fi chập chờn.</li>
+                    <li><b>History:</b> Lưu trữ các bản tin để đối chiếu.</li>
+                    <li><b>Liveliness:</b> Automatic Liveliness với Announcement Period cấu hình tối ưu để tránh ngốn pin.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Demo Thực Tế</h2>
+                <p>1 Laptop (Dashboard) + N Điện thoại Android</p>
+                <ol>
+                    <li>Mở app trên các điện thoại.</li>
+                    <li>Dữ liệu sẽ tự đồng bộ giữa các máy (Many-to-Many).</li>
+                    <li>Dashboard hiển thị theo thời gian thực.</li>
+                    <li>Thử tắt Wi-Fi 1 máy -> Dashboard báo Offline tức thì.</li>
+                </ol>
+            </section>
+            
+            <section>
+                <h2>Q & A</h2>
+                <p>Cảm ơn các bạn đã lắng nghe!</p>
+            </section>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: true,
+        });
+    </script>
+</body>
+</html>
