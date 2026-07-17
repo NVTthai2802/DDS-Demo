@@ -98,8 +98,8 @@ public:
         publisher_ = participant_->create_publisher(PUBLISHER_QOS_DEFAULT);
         DataWriterQos wqos = DATAWRITER_QOS_DEFAULT;
         wqos.liveliness().kind = AUTOMATIC_LIVELINESS_QOS;
-        wqos.liveliness().lease_duration = eprosima::fastrtps::Duration_t(3, 0);
-        wqos.liveliness().announcement_period = eprosima::fastrtps::Duration_t(1, 0);
+        wqos.liveliness().lease_duration = eprosima::fastrtps::Duration_t(10, 0);
+        wqos.liveliness().announcement_period = eprosima::fastrtps::Duration_t(3, 0);
         writer_ = publisher_->create_datawriter(topic_, wqos);
         
         subscriber_ = participant_->create_subscriber(SUBSCRIBER_QOS_DEFAULT);

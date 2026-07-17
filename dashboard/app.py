@@ -3,20 +3,30 @@ import subprocess
 import threading
 import json
 import time
+from datetime import datetime
 import pandas as pd
 import plotly.express as px
-from db import Database
 import os
 import sys
+from dataclasses import dataclass, field
+from collections import deque
 
 st.set_page_config(page_title="Mesh DDS Dashboard", layout="wide")
 
-DB_PATH = os.environ.get("DB_PATH", "history.db")
-@st.cache_resource
-def get_database():
-    return Database(DB_PATH, fresh_start=True)
+@dataclass
+class MeshState:
+    peers: dict = field(default_factory=dict)
+    sensor_data: deque = field(default_factory=lambda: deque(maxlen=2000))
+    guid_to_name: dict = field(default_factory=dict)
 
-db = get_database()
+@st.cache_resource
+def get_state():
+    return MeshState()
+
+state = get_state()
+
+def get_prefix(guid_str):
+    return guid_str.split('|')[0] if '|' in guid_str else guid_str
 
 @st.cache_resource
 def start_backend():
@@ -25,7 +35,7 @@ def start_backend():
     cmd = [backend_exe]
 
     try:
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace')
     except Exception as e:
         st.error(f"Failed to start backend: {e}")
         return None
@@ -36,14 +46,94 @@ def start_backend():
                 if line:
                     try:
                         log = json.loads(line)
-                        if log.get('event') == 'spdp':
-                            db.update_spdp(log.get('guid'), log.get('name'), log.get('status'))
-                        elif log.get('event') == 'sedp':
-                            db.update_sedp(log.get('writer_guid'), log.get('status'), log.get('qos_reliability'))
-                        elif log.get('event') == 'liveliness':
-                            db.update_liveliness(log.get('writer_guid'), log.get('alive_count_change', 0), log.get('not_alive_count_change', 0))
-                        elif log.get('event') == 'data':
-                            db.insert_data(log)
+                        event = log.get('event')
+                        now = datetime.now()
+                        
+                        if event == 'spdp':
+                            guid = log.get('guid')
+                            name = log.get('name')
+                            status = log.get('status')
+                            
+                            if guid:
+                                prefix = get_prefix(guid)
+                                if name:
+                                    state.guid_to_name[prefix] = name
+                                
+                                if status == "DISCOVERED" and name:
+                                    if name not in state.peers:
+                                        state.peers[name] = {
+                                            'name': name, 'prefix': prefix, 'guid': guid, 
+                                            'status': status, 'sedp_matched': False, 
+                                            'qos': None, 'last_seen': now
+                                        }
+                                    else:
+                                        state.peers[name]['status'] = status
+                                        state.peers[name]['last_seen'] = now
+                                        state.peers[name]['prefix'] = prefix
+                                        state.peers[name]['guid'] = guid
+                                elif status == "REMOVED" and name in state.peers:
+                                    state.peers[name]['status'] = "OFFLINE"
+                                    state.peers[name]['last_seen'] = now
+                                    state.peers[name]['sedp_matched'] = False
+                                    
+                        elif event == 'sedp':
+                            writer_guid = log.get('writer_guid')
+                            status = log.get('status')
+                            qos = log.get('qos_reliability')
+                            if writer_guid:
+                                prefix = get_prefix(writer_guid)
+                                name = state.guid_to_name.get(prefix)
+                                if name and name in state.peers:
+                                    is_matched = (status == "MATCHED")
+                                    state.peers[name]['sedp_matched'] = is_matched
+                                    state.peers[name]['qos'] = qos
+                                    state.peers[name]['last_seen'] = now
+                                    
+                        elif event == 'liveliness':
+                            writer_guid = log.get('writer_guid')
+                            alive = log.get('alive_count_change', 0)
+                            not_alive = log.get('not_alive_count_change', 0)
+                            if writer_guid:
+                                prefix = get_prefix(writer_guid)
+                                name = state.guid_to_name.get(prefix)
+                                if name and name in state.peers:
+                                    if not_alive > 0:
+                                        state.peers[name]['status'] = "OFFLINE"
+                                        state.peers[name]['last_seen'] = now
+                                        state.peers[name]['sedp_matched'] = False
+                                    elif alive > 0:
+                                        state.peers[name]['status'] = "DISCOVERED"
+                                        state.peers[name]['last_seen'] = now
+                                        state.peers[name]['sedp_matched'] = True
+                                        
+                        elif event == 'data':
+                            latency = log['receive_time'] - log['timestamp']
+                            data_entry = {
+                                'id': len(state.sensor_data) + 1,
+                                'device_id': log['device_id'],
+                                'sequence_number': log['sequence_number'],
+                                'timestamp': log['timestamp'],
+                                'temperature': log['temperature'],
+                                'humidity': log['humidity'],
+                                'co2': log.get('co2', 0),
+                                'light': log.get('light', 0),
+                                'occupancy': log.get('occupancy', False),
+                                'battery': log.get('battery', 0),
+                                'signal_strength': log.get('signal_strength', 0),
+                                'latency_ms': latency,
+                                'receive_time': log['receive_time']
+                            }
+                            state.sensor_data.append(data_entry)
+                            
+                            writer_guid = log.get('writer_guid')
+                            if writer_guid:
+                                prefix = get_prefix(writer_guid)
+                                name = state.guid_to_name.get(prefix)
+                                if name and name in state.peers:
+                                    state.peers[name]['last_seen'] = now
+                                    state.peers[name]['status'] = 'DISCOVERED'
+                                    state.peers[name]['sedp_matched'] = True
+                                    
                     except json.JSONDecodeError:
                         pass
                     except Exception as e:
@@ -52,18 +142,9 @@ def start_backend():
                         log_file.write(f"Line content: {line.strip()}\n")
                         log_file.flush()
 
-    def read_stderr(proc):
-        with open("dashboard_error.log", "a", encoding="utf-8") as log_file:
-            for line in iter(proc.stderr.readline, ''):
-                if line:
-                    log_file.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [backend stderr] {line.strip()}\n")
-                    log_file.flush()
-
     t_stdout = threading.Thread(target=read_output, args=(process,), daemon=True)
     t_stdout.start()
     
-    t_stderr = threading.Thread(target=read_stderr, args=(process,), daemon=True)
-    t_stderr.start()
     return process
 
 start_backend()
@@ -74,7 +155,7 @@ col1, col2 = st.columns([1, 2])
 
 with col1:
     st.subheader("Runtime & Discovery (SPDP vs SEDP)")
-    peers_df = db.get_peers_df()
+    peers_df = pd.DataFrame(list(state.peers.values()))
     if not peers_df.empty:
         display_df = peers_df[['name', 'guid', 'status', 'sedp_matched', 'qos', 'last_seen']].copy()
         
@@ -93,44 +174,60 @@ with col1:
 
 with col2:
     st.subheader("Sensor Data & Analytics")
-    data_df = db.get_latest_data_df(500)
+    data_df = pd.DataFrame(list(state.sensor_data))
     if not data_df.empty:
+        # Get the latest 500 rows and sort descending by id like the SQL query did
+        data_df_limit = data_df.tail(500).sort_values('id', ascending=False)
+        
         st.markdown("**Relative Latency (ms) (Receive Time - Sample Time)**")
-        fig_lat = px.line(data_df, x='id', y='latency_ms', color='device_id', markers=True)
+        fig_lat = px.line(data_df_limit, x='id', y='latency_ms', color='device_id', markers=True)
         st.plotly_chart(fig_lat, use_container_width=True)
         
         col_t, col_h = st.columns(2)
         with col_t:
             st.markdown("**Temperature (°C)**")
-            fig_temp = px.line(data_df, x='id', y='temperature', color='device_id')
+            fig_temp = px.line(data_df_limit, x='id', y='temperature', color='device_id')
             st.plotly_chart(fig_temp, use_container_width=True)
         with col_h:
             st.markdown("**Humidity (%)**")
-            fig_hum = px.line(data_df, x='id', y='humidity', color='device_id')
+            fig_hum = px.line(data_df_limit, x='id', y='humidity', color='device_id')
             st.plotly_chart(fig_hum, use_container_width=True)
             
         col_c, col_l = st.columns(2)
         with col_c:
             st.markdown("**CO2 Levels (ppm)**")
-            fig_co2 = px.line(data_df, x='id', y='co2', color='device_id')
+            fig_co2 = px.line(data_df_limit, x='id', y='co2', color='device_id')
             st.plotly_chart(fig_co2, use_container_width=True)
         with col_l:
             st.markdown("**Ambient Light (lux)**")
-            fig_light = px.line(data_df, x='id', y='light', color='device_id')
+            fig_light = px.line(data_df_limit, x='id', y='light', color='device_id')
             st.plotly_chart(fig_light, use_container_width=True)
             
         col_b, col_s = st.columns(2)
         with col_b:
             st.markdown("**Battery Level (%)**")
-            fig_bat = px.line(data_df, x='id', y='battery', color='device_id')
+            fig_bat = px.line(data_df_limit, x='id', y='battery', color='device_id')
             st.plotly_chart(fig_bat, use_container_width=True)
         with col_s:
             st.markdown("**Signal Strength (dBm)**")
-            fig_sig = px.line(data_df, x='id', y='signal_strength', color='device_id')
+            fig_sig = px.line(data_df_limit, x='id', y='signal_strength', color='device_id')
             st.plotly_chart(fig_sig, use_container_width=True)
             
         st.markdown("**Packet Loss & Reliability**")
-        loss_df = db.get_packet_loss_df()
+        loss_data = []
+        for device_id, df_group in data_df.groupby('device_id'):
+            if 'sequence_number' in df_group.columns:
+                expected = int(df_group['sequence_number'].max() - df_group['sequence_number'].min() + 1)
+                received = len(df_group)
+                loss = max(0, expected - received)
+                loss_percent = round((loss * 100.0 / expected), 2) if expected > 0 else 0.0
+                loss_data.append({
+                    'device_id': device_id,
+                    'received_msgs': received,
+                    'expected_msgs': expected,
+                    'loss_percent': loss_percent
+                })
+        loss_df = pd.DataFrame(loss_data)
         if not loss_df.empty:
             st.dataframe(loss_df, use_container_width=True)
             

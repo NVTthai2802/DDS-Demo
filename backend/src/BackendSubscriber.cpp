@@ -56,7 +56,7 @@ bool BackendSubscriber::init(uint32_t domain_id, const std::string& topic_name) 
         rqos.data_sharing().off();
         rqos.reliability().kind = RELIABLE_RELIABILITY_QOS;
         rqos.liveliness().kind = AUTOMATIC_LIVELINESS_QOS;
-        rqos.liveliness().lease_duration = eprosima::fastrtps::Duration_t(3, 0);
+        rqos.liveliness().lease_duration = eprosima::fastrtps::Duration_t(10, 0);
 
         reader_ = subscriber_->create_datareader(topic_, rqos, &read_listener_);
         if (reader_ == nullptr) {
