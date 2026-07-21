@@ -56,3 +56,4 @@ backend/build_app/
 # OS & Environment
 .DS_Store
 .env
+*.log

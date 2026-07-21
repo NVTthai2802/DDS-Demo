@@ -1,9 +1,6 @@
-# DDS Mesh Network - Bee Labs
-
-Hệ thống mạng Mesh DDS (Data Distribution Service) ngang hàng (P2P), không Broker trung tâm, thử nghiệm trên phần cứng thực tế.
 # DDS Mesh Demo v2 (Bee Labs)
 
-Hệ thống thử nghiệm giao thức **Data Distribution Service (DDS)** trên nền tảng di động Android và Laptop Dashboard (WSL2/Linux). Thử nghiệm chứng minh kiến trúc mạng ngang hàng P2P Many-to-Many với Fast DDS.
+Hệ thống thử nghiệm giao thức **Data Distribution Service (DDS)** ngang hàng (P2P), không Broker trung tâm, trên nền tảng di động Android và Laptop Dashboard (Native Windows 11). Thử nghiệm chứng minh kiến trúc mạng ngang hàng P2P Many-to-Many với Fast DDS trên phần cứng thực tế.
 
 ## Kiến Trúc
 - **Android App:** C++ Native JNI + Kotlin. Thiết bị vừa là Publisher vừa là Subscriber. Đo độ trễ tự động và hiển thị log real-time.
@@ -54,19 +51,13 @@ streamlit run app.py
 - `docs/slides.html`: Slide thuyết trình Reveal.js ngắn gọn.
 - `docs/test_checklist.md`: Checklist kịch bản test cho team QA/Dev.
 
-## 📊 Hướng dẫn Quay Video Demo & Checklist
-1. Mở Streamlit Dashboard trên màn hình Laptop.
-2. Mở App trên thiết bị Android. (Nếu thiếu máy thật, có thể chạy thêm Emulator, nhưng nên ưu tiên ít nhất 2 máy thật để demo mạng Wi-Fi thực tế).
-3. **[Chứng minh SPDP/SEDP]**: Chỉ ra Dashboard hiện các node ở trạng thái `MATCHED` (Online/Xanh lá).
-4. **[Chứng minh Many-to-Many]**: Quay sát màn hình 1 chiếc điện thoại, cho thấy nó đang hiển thị dữ liệu nhận được từ các thiết bị còn lại.
-5. **[Chứng minh Fault Tolerance]**: Tắt Wi-Fi 1 chiếc điện thoại. Chỉ ra Dashboard cập nhật node đó thành `Offline`, trong khi thiết bị kia vẫn đang nhảy số liệu liên tục bình thường.
 
 ## 🌐 Hướng dẫn Deploy Slides (GitHub Pages)
 Slide thuyết trình được viết thuần bằng HTML (Reveal.js). Để deploy:
 1. Vào Settings của Github Repo -> **Pages**.
 2. Chọn Source là **Deploy from a branch**.
-3. Chọn nhánh `master`, thư mục gốc `/` (hoặc tạo một nhánh `gh-pages` riêng tuỳ ý).
-4. Save. Link slide sẽ có dạng `https://<username>.github.io/<repo>/slides/index.html`.
+3. Chọn nhánh `rebuild-v2`, thư mục gốc `/` (hoặc tạo một nhánh `gh-pages` riêng tuỳ ý).
+4. Save. Link slide sẽ có dạng `https://<username>.github.io/<repo>/docs/slides.html`.
 
 ## ⚙️ Đo đạc QoS & Latency
 **LƯU Ý:** 
